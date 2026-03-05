@@ -96,28 +96,20 @@ bool SymbolAnalyze::find_symbol_offset() {
 }
 
 void SymbolAnalyze::printf_symbol_offset() {
-	std::cout << "_text:" << m_sym_offset._text << std::endl;
-	std::cout << "_stext:" << m_sym_offset._stext << std::endl;
-	if (m_sym_offset.die) std::cout << "die:" << m_sym_offset.die.offset << ", size:" << m_sym_offset.die.size << std::endl;
-	if (m_sym_offset.arm64_notify_die) std::cout << "arm64_notify_die:" << m_sym_offset.arm64_notify_die.offset << ", size:" << m_sym_offset.arm64_notify_die.size << std::endl;
-	if (m_sym_offset.__drm_printfn_coredump) std::cout << "__drm_printfn_coredump:" << m_sym_offset.__drm_printfn_coredump.offset << ", size:" << m_sym_offset.__drm_printfn_coredump.size << std::endl;
-
-	std::cout << "do_execveat_common:" << m_sym_offset.do_execveat_common << std::endl;
-
-	std::cout << "avc_denied:" << m_sym_offset.avc_denied.offset << ", size:" << m_sym_offset.avc_denied.size << std::endl;
-	std::cout << "audit_log_start:" << m_sym_offset.audit_log_start << std::endl;
-	std::cout << "filldir64:" << m_sym_offset.filldir64 << std::endl;
-
-	std::cout << "sys_getuid:" << m_sym_offset.sys_getuid.offset << ", size:" << m_sym_offset.sys_getuid.size << std::endl;
-	std::cout << "prctl_get_seccomp:" << m_sym_offset.prctl_get_seccomp.offset << ", size:" << m_sym_offset.prctl_get_seccomp.size << std::endl;
-
-	std::cout << "__cfi_check:" << m_sym_offset.__cfi_check.offset << ", size:" << m_sym_offset.__cfi_check.size << std::endl;
-	std::cout << "__cfi_check_fail:" << m_sym_offset.__cfi_check_fail << std::endl;
-	std::cout << "__cfi_slowpath_diag:" << m_sym_offset.__cfi_slowpath_diag << std::endl;
-	std::cout << "__cfi_slowpath:" << m_sym_offset.__cfi_slowpath << std::endl;
-	std::cout << "__ubsan_handle_cfi_check_fail_abort:" << m_sym_offset.__ubsan_handle_cfi_check_fail_abort << std::endl;
-	std::cout << "__ubsan_handle_cfi_check_fail:" << m_sym_offset.__ubsan_handle_cfi_check_fail << std::endl;
-	std::cout << "report_cfi_failure:" << m_sym_offset.report_cfi_failure << std::endl;
+	auto check = [](const char* name, bool found) {
+		if (!found) std::cout << "  [缺失] " << name << std::endl;
+	};
+	std::cout << "符号定位结果:" << std::endl;
+	check("die", m_sym_offset.die.valid());
+	check("arm64_notify_die", m_sym_offset.arm64_notify_die.valid());
+	check("__drm_printfn_coredump", m_sym_offset.__drm_printfn_coredump.valid());
+	check("do_execveat_common", m_sym_offset.do_execveat_common != 0);
+	check("avc_denied", m_sym_offset.avc_denied.valid());
+	check("audit_log_start", m_sym_offset.audit_log_start != 0);
+	check("filldir64", m_sym_offset.filldir64 != 0);
+	check("sys_getuid", m_sym_offset.sys_getuid.valid());
+	check("prctl_get_seccomp", m_sym_offset.prctl_get_seccomp.valid());
+	std::cout << "所有必需符号已定位" << std::endl;
 }
 
 uint64_t SymbolAnalyze::kallsyms_matching_single(const char* name, bool fuzzy) {

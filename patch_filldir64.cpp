@@ -12,12 +12,11 @@ PatchFilldir64::~PatchFilldir64() {}
 size_t PatchFilldir64::patch_filldir64_root_key_guide(size_t root_key_mem_addr, const SymbolRegion& hook_func_start_region, std::vector<patch_bytes_data>& vec_out_patch_bytes_data) {
 	size_t hook_func_start_addr = hook_func_start_region.offset;
 	if (hook_func_start_addr == 0) { return 0; }
-	std::cout << "Start hooking addr:  " << std::hex << hook_func_start_addr << std::endl << std::endl;
+	std::cout << "正在 hook filldir64 (guide)..." << std::endl;
 	aarch64_asm_ctx asm_ctx = init_aarch64_asm();
 	auto a = asm_ctx.assembler();
 	int root_key_adr_offset = root_key_mem_addr - (hook_func_start_addr + a->offset());
 	aarch64_asm_adr_x(a, x11, root_key_adr_offset);
-	std::cout << print_aarch64_asm(a) << std::endl;
 
 	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(a);
 	if (bytes.size() == 0) return 0;
@@ -37,7 +36,7 @@ size_t PatchFilldir64::patch_filldir64_root_key_guide(size_t root_key_mem_addr, 
 size_t PatchFilldir64::patch_filldir64_core(const SymbolRegion& hook_func_start_region, std::vector<patch_bytes_data>& vec_out_patch_bytes_data) {
 	size_t hook_func_start_addr = hook_func_start_region.offset;
 	if (hook_func_start_addr == 0) { return 0; }
-	std::cout << "Start hooking addr:  " << std::hex << hook_func_start_addr << std::endl << std::endl;
+	std::cout << "正在 hook filldir64 (core)..." << std::endl;
 	size_t hook_jump_back_addr = m_filldir64 + 4;
 
 	GpX x_name_arg = x1;
@@ -53,6 +52,7 @@ size_t PatchFilldir64::patch_filldir64_core(const SymbolRegion& hook_func_start_
 	a->bind(label_cycle_name);
 	a->ldrb(w13, ptr(x_name_arg, x12));
 	a->ldrb(w14, ptr(x11, x12));
+	a->eor(w14, w14, Imm(ROOT_KEY_XOR_BYTE));
 	a->cmp(w13, w14);
 	a->b(CondCode::kNE, label_end);
 	a->add(x12, x12, Imm(1));
@@ -64,7 +64,6 @@ size_t PatchFilldir64::patch_filldir64_core(const SymbolRegion& hook_func_start_
 	a->bind(label_end);
 	a->mov(x0, x0);
 	aarch64_asm_b(a, (int32_t)(hook_jump_back_addr - (hook_func_start_addr + a->offset())));
-	std::cout << print_aarch64_asm(a) << std::endl;
 
 	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(a);
 	if (bytes.size() == 0) return 0;

@@ -13,7 +13,7 @@ PatchAuditLogStart::~PatchAuditLogStart() {}
 size_t PatchAuditLogStart::patch_audit_log_start(const SymbolRegion& hook_func_start_region, size_t current_avc_check_bl_func, std::vector<patch_bytes_data>& vec_out_patch_bytes_data) {
 	size_t hook_func_start_addr = hook_func_start_region.offset;
 	if (hook_func_start_addr == 0) { return 0; }
-	std::cout << "Start hooking addr:  " << std::hex << hook_func_start_addr << std::endl << std::endl;
+	std::cout << "正在 hook audit_log_start..." << std::endl;
 
 	size_t hook_jump_back_addr = m_audit_log_start + 4;
 
@@ -27,7 +27,6 @@ size_t PatchAuditLogStart::patch_audit_log_start(const SymbolRegion& hook_func_s
 	a->bind(label_end);
 	a->mov(x0, x0);
 	aarch64_asm_b(a, (int32_t)(hook_jump_back_addr - (hook_func_start_addr + a->offset())));
-	std::cout << print_aarch64_asm(a) << std::endl;
 	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(a);
 	if (bytes.size() == 0) return 0;
 	std::string str_bytes = bytes2hex((const unsigned char*)bytes.data(), bytes.size());

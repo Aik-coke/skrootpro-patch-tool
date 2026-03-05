@@ -19,7 +19,7 @@ size_t PatchDoExecve::patch_do_execve(const SymbolRegion& hook_func_start_region
 	size_t hook_func_start_addr = hook_func_start_region.offset;
 	if (hook_func_start_addr == 0) { return 0; }
 	if (m_do_execve_addr == 0) { return 0; }
-	std::cout << "Start hooking addr:  " << std::hex << hook_func_start_addr << std::endl << std::endl;
+	std::cout << "正在 hook do_execveat_common..." << std::endl;
 
 	int atomic_usage_len = get_cred_atomic_usage_len();
 	int securebits_padding = get_cred_securebits_padding();
@@ -46,13 +46,14 @@ size_t PatchDoExecve::patch_do_execve(const SymbolRegion& hook_func_start_region
 	// compute root_key address
 	int key_offset = key_start - a->offset();
 	aarch64_asm_adr_x(a, x12, key_offset);
-	// compare filename with root_key byte by byte
+	// compare filename with XOR-obfuscated root_key byte by byte
 	a->bind(label_cycle_name);
 	a->ldrb(w14, ptr(x11).post(1));
 	a->ldrb(w15, ptr(x12).post(1));
+	a->eor(w15, w15, Imm(ROOT_KEY_XOR_BYTE));
 	a->cmp(w14, w15);
 	a->b(CondCode::kNE, label_end);
-	a->cbnz(w15, label_cycle_name);
+	a->cbnz(w14, label_cycle_name);
 	// === ROOT privilege escalation ===
 	// get current task_struct via mrs sp_el0
 	emit_get_current(a, x12);
@@ -98,7 +99,6 @@ size_t PatchDoExecve::patch_do_execve(const SymbolRegion& hook_func_start_region
 
 	a->bind(label_end);
 	aarch64_asm_b(a, (int32_t)(hook_jump_back_addr - (hook_func_start_addr + a->offset())));
-	std::cout << print_aarch64_asm(a) << std::endl;
 	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(a);
 	if (bytes.size() == 0) return 0;
 	std::string str_bytes = bytes2hex((const unsigned char*)bytes.data(), bytes.size());

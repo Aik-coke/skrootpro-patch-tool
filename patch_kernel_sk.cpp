@@ -187,21 +187,17 @@ int main(int argc, char* argv[]) {
 		std::cout << "cred 偏移解析失败" << std::endl;
 		return 0;
 	}
-	std::cout << "cred offset mode: " << t_mode_name << std::endl;
 
 	if (!parse_cred_uid_offset(file_buf, sym.sys_getuid, cred_offset, cred_uid_offset)) {
 		std::cout << "cred uid 偏移解析失败" << std::endl;
 		return 0;
 	}
-	std::cout << "cred uid offset: " << cred_uid_offset << std::endl;
 
 	if (!parser_seccomp_offset(file_buf, sym.prctl_get_seccomp, t_mode_name, seccomp_offset)) {
 		std::cout << "seccomp 偏移解析失败" << std::endl;
 		return 0;
 	}
-	std::cout << "seccomp offset mode: " << t_mode_name << std::endl;
-	std::cout << "cred offset: " << cred_offset << std::endl;
-	std::cout << "seccomp offset: " << seccomp_offset << std::endl;
+	std::cout << "结构体偏移解析完成" << std::endl;
 
 	std::vector<patch_bytes_data> vec_patch_bytes_data;
 	cfi_bypass(file_buf, sym, vec_patch_bytes_data);
@@ -225,7 +221,12 @@ int main(int argc, char* argv[]) {
 	}
 	std::string write_key = str_root_key;
 	write_key.erase(write_key.size() - 1);
-	patch_data(file_buf, pr.root_key_start, (void*)write_key.c_str(), write_key.length() + 1, vec_patch_bytes_data);
+	// XOR 混淆：内核中不存储明文 root_key
+	for (auto& c : write_key) c ^= ROOT_KEY_XOR_BYTE;
+	// null terminator 也需要 XOR（shellcode 用解密后的值判断终止）
+	char xor_null = static_cast<char>(ROOT_KEY_XOR_BYTE);
+	write_key += xor_null;
+	patch_data(file_buf, pr.root_key_start, (void*)write_key.c_str(), write_key.length(), vec_patch_bytes_data);
 
 	std::cout << "#获取ROOT权限的密匙(Key): " << str_root_key.c_str() << std::endl << std::endl;
 

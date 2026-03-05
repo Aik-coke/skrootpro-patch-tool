@@ -5,6 +5,7 @@
 
 #define ROOT_KEY_LEN 48
 #define FOLDER_HEAD_ROOT_KEY_LEN 16
+#define ROOT_KEY_XOR_BYTE 0xA5
 
 #define IF_EXIT(cond) do { if (cond) { printf("[ERROR] Patch empty addr!\n"); system("pause"); exit(0); } } while (0)
 

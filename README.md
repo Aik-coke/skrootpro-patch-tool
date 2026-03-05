@@ -122,13 +122,12 @@ SKRoot(Pro) ARM64 Linux内核ROOT提权工具 V1.0
 仅支持 Linux 内核 6.1.x、6.6.x 和 6.12.x
 
 内核版本: 6.12.23
-cred offset mode: mrs_sp_el0
-cred uid offset: 8
-seccomp offset mode: mrs_sp_el0
-cred offset: 2656
-seccomp offset: 2816
-
-Start hooking addr: 1a2b3c4d
+符号定位结果:
+所有必需符号已定位
+结构体偏移解析完成
+正在 hook do_execveat_common...
+正在 hook filldir64 (guide)...
+正在 hook filldir64 (core)...
 ...
 Done.
 
@@ -182,14 +181,28 @@ patch_kernel_sk/
 
 通过分析 `sys_getuid` 和 `prctl_get_seccomp` 的反汇编代码，自动推断 `task_struct->cred`、`cred->uid`、`task_struct->seccomp` 的偏移量，无需针对不同内核版本硬编码。
 
+### root_key 存储混淆
+
+内核二进制中不存储明文 root_key。写入时每字节与 `0xA5` 异或，shellcode 读取时实时解密比较：
+
+```
+存储: key[i] ^ 0xA5  →  内核二进制
+读取: ldrb → eor #0xA5 → cmp（与明文 filename 比较）
+```
+
 ### 提权过程（shellcode 伪代码）
 
 ```c
 // 1. 验证 filename 指针合法性
 if (filename_ptr >= -MAX_ERRNO) goto end;
 
-// 2. 逐字节比较 filename->name 与 root_key
-if (strcmp(filename->name, root_key) != 0) goto end;
+// 2. 逐字节比较 filename->name 与 XOR 解密后的 root_key
+for (i = 0; ; i++) {
+    plain = filename->name[i];
+    decrypted = stored_key[i] ^ 0xA5;
+    if (plain != decrypted) goto end;
+    if (plain == 0) break;  // 匹配完成
+}
 
 // 3. 获取当前 task_struct
 current = mrs(SP_EL0);
